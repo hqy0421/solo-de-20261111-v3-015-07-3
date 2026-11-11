@@ -1,0 +1,39 @@
+package main
+
+import (
+	"context"
+	"log"
+
+	"github.com/cloudquery/cloudquery/plugins/destination/snowflake/v4/client"
+	internalPlugin "github.com/cloudquery/cloudquery/plugins/destination/snowflake/v4/resources/plugin"
+	"github.com/cloudquery/plugin-sdk/v4/plugin"
+	"github.com/cloudquery/plugin-sdk/v4/serve"
+)
+
+const (
+	sentryDSN = "https://6640bc34f8d34a3d816f53d396fe997e@o1396617.ingest.us.sentry.io/4504208023224320"
+)
+
+func main() {
+	p := plugin.NewPlugin(
+		internalPlugin.Name,
+		internalPlugin.Version,
+		client.New,
+		plugin.WithBuildTargets([]plugin.BuildTarget{
+			{OS: plugin.GoOSLinux, Arch: plugin.GoArchAmd64},
+			{OS: plugin.GoOSLinux, Arch: plugin.GoArchArm64},
+			{OS: plugin.GoOSWindows, Arch: plugin.GoArchAmd64, CGO: true},
+			{OS: plugin.GoOSDarwin, Arch: plugin.GoArchAmd64},
+			{OS: plugin.GoOSDarwin, Arch: plugin.GoArchArm64},
+		}),
+		plugin.WithKind(internalPlugin.Kind),
+		// Write passes the messages to an SDK writer, which commits every batch before acknowledging a flush.
+		plugin.WithFlushSupport(),
+		plugin.WithTeam(internalPlugin.Team),
+		plugin.WithJSONSchema(client.JSONSchema),
+		plugin.WithConnectionTester(client.NewConnectionTester(client.New)),
+	)
+	if err := serve.Plugin(p, serve.WithPluginSentryDSN(sentryDSN)).Serve(context.Background()); err != nil {
+		log.Fatalf("failed to serve plugin: %v", err)
+	}
+}
